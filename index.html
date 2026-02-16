@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEG smart · professional dashboard</title>
+    <!-- Fonts & Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Chart.js 3 for elegant graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #f4f7fc;
+            font-family: 'Inter', sans-serif;
+            padding: 24px;
+            color: #1a2639;
+        }
+
+        .dashboard {
+            max-width: 1440px;
+            margin: 0 auto;
+        }
+
+        /* header with system badge */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 28px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .title-section h1 {
+            font-weight: 600;
+            font-size: 2rem;
+            background: linear-gradient(145deg, #0B3B5C, #1B4F72);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+        }
+
+        .title-section .badge {
+            background: #d0e2f2;
+            color: #0a3144;
+            padding: 6px 14px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            display: inline-block;
+            margin-top: 6px;
+            box-shadow: 0 2px 6px rgba(0,40,70,0.08);
+        }
+
+        .status-chip {
+            background: white;
+            border-radius: 40px;
+            padding: 8px 22px;
+            box-shadow: 0 8px 18px -6px rgba(0,50,80,0.12);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+        }
+
+        .online-dot {
+            width: 12px;
+            height: 12px;
+            background: #2ecc71;
+            border-radius: 20px;
+            box-shadow: 0 0 0 3px rgba(46,204,113,0.2);
+        }
+
+        /* metric cards */
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 22px;
+            margin-bottom: 28px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 28px;
+            padding: 22px 20px;
+            box-shadow: 0 15px 30px -12px rgba(0,32,64,0.1);
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255,255,255,0.6);
+            backdrop-filter: blur(2px);
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 22px 40px -14px rgba(0,60,100,0.18);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .icon-bg {
+            width: 48px;
+            height: 48px;
+            border-radius: 18px;
+            background: #ecf5fb;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1d5b8e;
+            font-size: 1.6rem;
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #4f6f8f;
+            letter-spacing: 0.3px;
+        }
+
+        .card-value {
+            font-size: 2.3rem;
+            font-weight: 600;
+            line-height: 1.2;
+            color: #0a1a2a;
+        }
+
+        .unit-sub {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #6b89a3;
+            margin-left: 5px;
+        }
+
+        .trend-badge {
+            background: #eef3f9;
+            border-radius: 40px;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+            color: #2c4c6e;
+            margin-top: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* double column: chart + table */
+        .row-chart {
+            display: grid;
+            grid-template-columns: 1.2fr 0.9fr;
+            gap: 22px;
+            margin-bottom: 28px;
+        }
+
+        .chart-panel, .table-panel {
+            background: white;
+            border-radius: 28px;
+            padding: 22px;
+            box-shadow: 0 15px 25px -12px rgba(0,30,50,0.08);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .panel-header h3 {
+            font-weight: 600;
+            font-size: 1.25rem;
+            color: #1a3d5c;
+        }
+
+        .legend-chip {
+            background: #e5eff9;
+            padding: 4px 14px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            color: #1d577b;
+        }
+
+        canvas {
+            width: 100%;
+            height: auto;
+            max-height: 200px;
+        }
+
+        /* fan & LDR mini cards inside table panel */
+        .fan-indicator {
+            background: #f0f6fe;
+            border-radius: 20px;
+            padding: 20px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .fan-left .label {
+            color: #4d7192;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .fan-left .value {
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: #0a3144;
+        }
+
+        .fan-icon {
+            font-size: 3rem;
+            color: #2c6c9e;
+            opacity: 0.7;
+        }
+
+        .ldr-block {
+            margin-top: 24px;
+            background: #fafdff;
+            border-radius: 20px;
+            padding: 16px;
+            border: 1px solid #dde9f5;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .ldr-bar-bg {
+            width: 60%;
+            height: 10px;
+            background: #dde5ed;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .ldr-bar-fill {
+            height: 10px;
+            background: linear-gradient(90deg, #f7b731, #f39c12);
+            border-radius: 20px;
+            width: 65%; /* dynamic via js */
+        }
+
+        /* latest snapshot table */
+        .snapshot-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        .snapshot-table td {
+            padding: 14px 6px;
+            border-bottom: 1px solid #eaf0f6;
+            font-weight: 500;
+        }
+
+        .snapshot-table td:last-child {
+            font-weight: 600;
+            color: #1b3c57;
+            text-align: right;
+        }
+
+        .snapshot-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* footer */
+        .footer-note {
+            margin-top: 30px;
+            color: #6b8baa;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #cbdbe9;
+            padding-top: 18px;
+        }
+
+        /* responsiveness */
+        @media (max-width: 1000px) {
+            .grid-4 { grid-template-columns: repeat(2, 1fr); }
+            .row-chart { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 550px) {
+            .grid-4 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="title-section">
+            <h1>⚡ TEG · thermoelectric generator</h1>
+            <div class="badge"><i class="fas fa-microchip" style="margin-right: 6px;"></i> ESP32 · Firebase RTDB · realtime</div>
+        </div>
+        <div class="status-chip">
+            <span class="online-dot"></span>
+            <span>live data stream</span>
+            <i class="fas fa-sync-alt fa-spin" style="color: #2c7cb0;"></i>
+        </div>
+    </div>
+
+    <!-- 4 PRIMARY CARDS (dynamic values) -->
+    <div class="grid-4">
+        <!-- TEG voltage card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="icon-bg"><i class="fas fa-bolt"></i></div>
+                <div class="card-title">TEG output</div>
+            </div>
+            <div class="card-value"><span id="tegVal">0.00</span><span class="unit-sub">V</span></div>
+            <div class="trend-badge"><i class="fas fa-chart-line" style="color: #2f7d4f;"></i> Seebeck direct</div>
+        </div>
+        <!-- Battery card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="icon-bg"><i class="fas fa-car-battery"></i></div>
+                <div class="card-title">Battery (charge)</div>
+            </div>
+            <div class="card-value"><span id="batVal">0.00</span><span class="unit-sub">V</span></div>
+            <div class="trend-badge"><i class="fas fa-battery-three-quarters"></i> nominal 12V</div>
+        </div>
+        <!-- Boost converter -->
+        <div class="card">
+            <div class="card-header">
+                <div class="icon-bg"><i class="fas fa-rocket"></i></div>
+                <div class="card-title">Boost out</div>
+            </div>
+            <div class="card-value"><span id="boostVal">0.00</span><span class="unit-sub">V</span></div>
+            <div class="trend-badge"><i class="fas fa-arrow-up"></i> regulated</div>
+        </div>
+        <!-- DS18B20 (main TEG temp) -->
+        <div class="card">
+            <div class="card-header">
+                <div class="icon-bg"><i class="fas fa-thermometer-half"></i></div>
+                <div class="card-title">TEG temp (DS18B20)</div>
+            </div>
+            <div class="card-value"><span id="dsTempVal">0.0</span><span class="unit-sub">°C</span></div>
+            <div class="trend-badge"><i class="fas fa-wind"></i> <span id="fanStatus">fan 0%</span></div>
+        </div>
+    </div>
+
+    <!-- CHART + TABLE/FAN SECTION -->
+    <div class="row-chart">
+        <!-- left side: bar chart mock (air, humidity, light) -->
+        <div class="chart-panel">
+            <div class="panel-header">
+                <h3><i class="fas fa-chart-bar" style="margin-right: 8px;"></i>ambient & light</h3>
+                <div class="legend-chip">DHT11 + LDR</div>
+            </div>
+            <canvas id="envChart" width="400" height="180"></canvas>
+            <div style="display: flex; justify-content: space-between; margin-top: 20px; color: #38658f; font-weight: 500;">
+                <span><i class="fas fa-temperature-low"></i> <span id="airTempLabel">0.0</span> °C</span>
+                <span><i class="fas fa-tint"></i> <span id="humLabel">0</span> %</span>
+                <span><i class="fas fa-sun"></i> <span id="lightLabel">0</span> %</span>
+            </div>
+        </div>
+
+        <!-- right side: fan & snapshot table -->
+        <div class="table-panel">
+            <div class="panel-header">
+                <h3><i class="fas fa-sliders-h"></i> actuator & summary</h3>
+                <div class="legend-chip">PWM fan · LDR</div>
+            </div>
+
+            <!-- FAN indicator (dynamic) -->
+            <div class="fan-indicator">
+                <div class="fan-left">
+                    <div class="label">fan PWM (DS18B20 control)</div>
+                    <div class="value"><span id="fanPWM">0</span> <span style="font-size: 1.2rem;">/ 255</span></div>
+                </div>
+                <div class="fan-icon"><i class="fas fa-fan"></i></div>
+            </div>
+
+            <!-- LDR progress bar with light% -->
+            <div class="ldr-block">
+                <span><i class="fas fa-lightbulb" style="color: #e67e22;"></i> Light level</span>
+                <span style="font-weight: 600;"><span id="ldrPercent">0</span>%</span>
+                <div class="ldr-bar-bg"><div class="ldr-bar-fill" id="ldrBarFill" style="width: 0%;"></div></div>
+            </div>
+
+            <!-- snapshot table: all other values -->
+            <table class="snapshot-table">
+                <tr><td>🌡️ Air temperature (DHT11)</td><td><span id="airTable">0.0</span> °C</td></tr>
+                <tr><td>💧 Humidity</td><td><span id="humTable">0</span> %</td></tr>
+                <tr><td>🔋 Battery voltage</td><td><span id="batTable">0.00</span> V</td></tr>
+                <tr><td>⚡ Boost voltage</td><td><span id="boostTable">0.00</span> V</td></tr>
+                <tr><td>🌡️ DS18B20 (cold side)</td><td><span id="dsTable">0.0</span> °C</td></tr>
+                <tr><td>🎛️ TEG voltage</td><td><span id="tegTable">0.00</span> V</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- FOOTER with firebase hint -->
+    <div class="footer-note">
+        <span><i class="fas fa-database" style="margin-right: 6px;"></i> Firebase path: /sensors/ </span>
+        <span>ESP32 TEG · <span id="timestamp">updating...</span></span>
+    </div>
+</div>
+
+<!-- SIMULATED FIREBASE UPDATES (matches esp32 structure) -->
+<script>
+    (function() {
+        // reference to all DOM elements
+        const tegSpan = document.getElementById('tegVal');
+        const batSpan = document.getElementById('batVal');
+        const boostSpan = document.getElementById('boostVal');
+        const dsTempSpan = document.getElementById('dsTempVal');
+        const fanPWMSpan = document.getElementById('fanPWM');
+        const fanStatusSpan = document.getElementById('fanStatus');
+
+        const airTempSpan = document.getElementById('airTempLabel');
+        const humSpan = document.getElementById('humLabel');
+        const lightSpan = document.getElementById('lightLabel');
+        const ldrPercentSpan = document.getElementById('ldrPercent');
+        const ldrBarFill = document.getElementById('ldrBarFill');
+
+        // table cells
+        const airTable = document.getElementById('airTable');
+        const humTable = document.getElementById('humTable');
+        const batTable = document.getElementById('batTable');
+        const boostTable = document.getElementById('boostTable');
+        const dsTable = document.getElementById('dsTable');
+        const tegTable = document.getElementById('tegTable');
+
+        const timestampSpan = document.getElementById('timestamp');
+
+        // Chart initialization (bar chart: air temp, humidity, light)
+        const ctx = document.getElementById('envChart').getContext('2d');
+        const envChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Air °C', 'Hum %', 'Light %'],
+                datasets: [{
+                    label: 'current values',
+                    data: [0, 0, 0],
+                    backgroundColor: ['#3b8bc0', '#50a5d9', '#f1c40f'],
+                    borderRadius: 8,
+                    barPercentage: 0.65,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false },
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#e2ecf5' },
+                        suggestedMax: 100,
+                    }
+                }
+            }
+        });
+
+        // ----- function to update UI from mock firebase object (matching esp32 keys) -----
+        function updateDashboard(data) {
+            // primary cards
+            tegSpan.innerText = data.teg?.toFixed(2) ?? '0.00';
+            batSpan.innerText = data.battery?.toFixed(2) ?? '0.00';
+            boostSpan.innerText = data.boost?.toFixed(2) ?? '0.00';
+            dsTempSpan.innerText = data.ds_temp?.toFixed(1) ?? '0.0';
+
+            const fanPWM = data.fan_pwm ?? 0;
+            fanPWMSpan.innerText = fanPWM;
+            const fanPercent = Math.round((fanPWM / 255) * 100);
+            fanStatusSpan.innerText = `fan ${fanPercent}%`;
+
+            // ambient bar values
+            const air = data.air_temp ?? 0;
+            const hum = data.humidity ?? 0;
+            const light = data.light ?? 0;
+
+            airTempSpan.innerText = air.toFixed(1);
+            humSpan.innerText = hum;
+            lightSpan.innerText = light;
+            ldrPercentSpan.innerText = light;
+            ldrBarFill.style.width = light + '%';
+
+            // table
+            airTable.innerText = air.toFixed(1);
+            humTable.innerText = hum;
+            batTable.innerText = data.battery?.toFixed(2) ?? '0.00';
+            boostTable.innerText = data.boost?.toFixed(2) ?? '0.00';
+            dsTable.innerText = data.ds_temp?.toFixed(1) ?? '0.0';
+            tegTable.innerText = data.teg?.toFixed(2) ?? '0.00';
+
+            // update chart
+            envChart.data.datasets[0].data = [air, hum, light];
+            envChart.update();
+
+            // timestamp
+            const now = new Date();
+            timestampSpan.innerText = now.toLocaleTimeString() + '  🔄 live';
+        }
+
+        // ---------- simulate realtime firebase fetch (every 3 seconds) ----------
+        // generate plausible values based on esp32 range
+        function generateMockData() {
+            // ds temp (teg side) 25-65°C  (influence fan)
+            const dsTemp = (Math.random() * 35 + 28).toFixed(1);  // ~28..63
+            // fan mapping from arduino code: <30:0, <40:100, <50:180 else 255
+            let fan = 0;
+            if (dsTemp >= 50) fan = 255;
+            else if (dsTemp >= 40) fan = 180;
+            else if (dsTemp >= 30) fan = 100;
+            else fan = 0;
+
+            // air temp DHT11 ~22-35
+            const airTemp = (Math.random() * 13 + 22).toFixed(1);
+            const hum = Math.floor(Math.random() * 40 + 35); // 35-75%
+            const ldr = Math.floor(Math.random() * 101);  // 0-100%
+
+            // voltages: teg 0.5~5.5V, bat 11.5~13.2, boost 5~7.5
+            const tegV = (Math.random() * 5 + 0.6).toFixed(2);
+            const batV = (Math.random() * 1.7 + 11.5).toFixed(2);
+            const boostV = (Math.random() * 2.5 + 5.0).toFixed(2);
+
+            return {
+                ds_temp: parseFloat(dsTemp),
+                air_temp: parseFloat(airTemp),
+                humidity: hum,
+                light: ldr,
+                battery: parseFloat(batV),
+                teg: parseFloat(tegV),
+                boost: parseFloat(boostV),
+                fan_pwm: fan
+            };
+        }
+
+        // initial data
+        let mock = generateMockData();
+        updateDashboard(mock);
+
+        // periodic update (like firebase polling)
+        setInterval(() => {
+            const fresh = generateMockData();
+            updateDashboard(fresh);
+        }, 2800);
+
+        // manual tweak: first load fine
+        // also reflect real esp32 data: light percent mapped 0-100, LDR raw -> percent.
+        // all good.
+
+        // you can also enable manual override via console (for presentation)
+        window.__mockUpdater = function(newVals) {
+            const current = generateMockData();
+            const merged = { ...current, ...newVals };
+            updateDashboard(merged);
+        };
+    })();
+</script>
+<!-- additional note: The values reflect the exact fields from ESP32 Firebase: ds_temp, air_temp, humidity, light, battery, teg, boost, fan_pwm -->
+</body>
+</html>
