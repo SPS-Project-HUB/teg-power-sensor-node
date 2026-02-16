@@ -3,14 +3,156 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TEG smart · professional dashboard</title>
+    <title>TEG SMART DASHBOARD · Firebase live</title>
     <!-- Fonts & Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <!-- Chart.js 3 for elegant graphs -->
+    <!-- Chart.js 3 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <!-- Firebase SDK (modular) -->
+    <script type="module">
+        // Import Firebase modules (latest v9+ style)
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+        import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
+
+        // ===== YOUR FIREBASE CONFIGURATION =====
+        // Replace with your own config object (from Firebase console)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBkZxX9WJY5vVhKpPqx8M7zLmz2c3d4e5f6",      // <-- REPLACE
+            authDomain: "teg-based-iot.firebaseapp.com",          // <-- REPLACE
+            databaseURL: "https://teg-based-iot-default-rtdb.asia-southeast1.firebasedatabase.app", // <-- YOUR DATABASE URL
+            projectId: "teg-based-iot",                            // <-- REPLACE
+            storageBucket: "teg-based-iot.appspot.com",            // <-- REPLACE
+            messagingSenderId: "123456789012",                     // <-- REPLACE
+            appId: "1:123456789012:web:abc123def456"               // <-- REPLACE
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // Reference to your sensors path (exactly as in ESP32 code)
+        const sensorsRef = ref(database, '/sensors');
+
+        // ---------- DOM element references ----------
+        const tegVal = document.getElementById('tegVal');
+        const batVal = document.getElementById('batVal');
+        const boostVal = document.getElementById('boostVal');
+        const dsTempVal = document.getElementById('dsTempVal');
+        const fanPWM = document.getElementById('fanPWM');
+        const fanStatus = document.getElementById('fanStatus');
+
+        const airTempLabel = document.getElementById('airTempLabel');
+        const humLabel = document.getElementById('humLabel');
+        const lightLabel = document.getElementById('lightLabel');
+        const ldrPercent = document.getElementById('ldrPercent');
+        const ldrBarFill = document.getElementById('ldrBarFill');
+
+        const airTable = document.getElementById('airTable');
+        const humTable = document.getElementById('humTable');
+        const batTable = document.getElementById('batTable');
+        const boostTable = document.getElementById('boostTable');
+        const dsTable = document.getElementById('dsTable');
+        const tegTable = document.getElementById('tegTable');
+
+        const timestampSpan = document.getElementById('timestamp');
+        const connectionBadge = document.getElementById('connectionBadge');
+
+        // Chart initialization
+        const ctx = document.getElementById('envChart').getContext('2d');
+        const envChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Air °C', 'Hum %', 'Light %'],
+                datasets: [{
+                    label: 'current values',
+                    data: [0, 0, 0],
+                    backgroundColor: ['#3b8bc0', '#50a5d9', '#f1c40f'],
+                    borderRadius: 8,
+                    barPercentage: 0.65,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#e2ecf5' },
+                        suggestedMax: 100,
+                    }
+                }
+            }
+        });
+
+        // ----- LIVE UPDATE FUNCTION (triggers on every firebase change) -----
+        onValue(sensorsRef, (snapshot) => {
+            const data = snapshot.val();
+            if (!data) {
+                console.warn("No data at /sensors");
+                return;
+            }
+
+            // Extract values with fallbacks
+            const ds_temp = data.ds_temp ?? 0;
+            const air_temp = data.air_temp ?? 0;
+            const humidity = data.humidity ?? 0;
+            const light = data.light ?? 0;
+            const battery = data.battery ?? 0;
+            const teg = data.teg ?? 0;
+            const boost = data.boost ?? 0;
+            const fan_pwm = data.fan_pwm ?? 0;
+
+            // ---- update primary cards ----
+            tegVal.innerText = teg.toFixed(2);
+            batVal.innerText = battery.toFixed(2);
+            boostVal.innerText = boost.toFixed(2);
+            dsTempVal.innerText = ds_temp.toFixed(1);
+
+            // fan
+            fanPWM.innerText = fan_pwm;
+            const fanPercent = Math.min(100, Math.round((fan_pwm / 255) * 100));
+            fanStatus.innerText = `fan ${fanPercent}%`;
+
+            // ---- ambient bar & labels ----
+            airTempLabel.innerText = air_temp.toFixed(1);
+            humLabel.innerText = humidity;
+            lightLabel.innerText = light;
+            ldrPercent.innerText = light;
+            ldrBarFill.style.width = light + '%';
+
+            // ---- table values ----
+            airTable.innerText = air_temp.toFixed(1);
+            humTable.innerText = humidity;
+            batTable.innerText = battery.toFixed(2);
+            boostTable.innerText = boost.toFixed(2);
+            dsTable.innerText = ds_temp.toFixed(1);
+            tegTable.innerText = teg.toFixed(2);
+
+            // ---- chart update ----
+            envChart.data.datasets[0].data = [air_temp, humidity, light];
+            envChart.update();
+
+            // ---- timestamp ----
+            const now = new Date();
+            timestampSpan.innerText = now.toLocaleTimeString() + '  🔄 live';
+
+            // ---- connection status (optional) ----
+            connectionBadge.innerHTML = '<span class="online-dot"></span> connected · realtime';
+        }, (error) => {
+            console.error("Firebase read failed:", error);
+            connectionBadge.innerHTML = '<span style="background:#e74c3c;" class="online-dot"></span> disconnected';
+        });
+
+        // Also show connection state
+        window.addEventListener('load', () => {
+            // small initial placeholder
+        });
+    </script>
+
     <style>
         * {
             margin: 0;
@@ -30,7 +172,6 @@
             margin: 0 auto;
         }
 
-        /* header with system badge */
         .header {
             display: flex;
             justify-content: space-between;
@@ -41,7 +182,7 @@
         }
 
         .title-section h1 {
-            font-weight: 600;
+            font-weight: 700;
             font-size: 2rem;
             background: linear-gradient(145deg, #0B3B5C, #1B4F72);
             -webkit-background-clip: text;
@@ -79,9 +220,9 @@
             background: #2ecc71;
             border-radius: 20px;
             box-shadow: 0 0 0 3px rgba(46,204,113,0.2);
+            display: inline-block;
         }
 
-        /* metric cards */
         .grid-4 {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -96,7 +237,6 @@
             box-shadow: 0 15px 30px -12px rgba(0,32,64,0.1);
             transition: all 0.2s ease;
             border: 1px solid rgba(255,255,255,0.6);
-            backdrop-filter: blur(2px);
         }
 
         .card:hover {
@@ -156,7 +296,6 @@
             gap: 6px;
         }
 
-        /* double column: chart + table */
         .row-chart {
             display: grid;
             grid-template-columns: 1.2fr 0.9fr;
@@ -192,13 +331,6 @@
             color: #1d577b;
         }
 
-        canvas {
-            width: 100%;
-            height: auto;
-            max-height: 200px;
-        }
-
-        /* fan & LDR mini cards inside table panel */
         .fan-indicator {
             background: #f0f6fe;
             border-radius: 20px;
@@ -249,10 +381,9 @@
             height: 10px;
             background: linear-gradient(90deg, #f7b731, #f39c12);
             border-radius: 20px;
-            width: 65%; /* dynamic via js */
+            width: 0%;
         }
 
-        /* latest snapshot table */
         .snapshot-table {
             width: 100%;
             border-collapse: collapse;
@@ -275,7 +406,6 @@
             border-bottom: none;
         }
 
-        /* footer */
         .footer-note {
             margin-top: 30px;
             color: #6b8baa;
@@ -287,7 +417,6 @@
             padding-top: 18px;
         }
 
-        /* responsiveness */
         @media (max-width: 1000px) {
             .grid-4 { grid-template-columns: repeat(2, 1fr); }
             .row-chart { grid-template-columns: 1fr; }
@@ -304,27 +433,25 @@
     <div class="header">
         <div class="title-section">
             <h1>⚡ TEG · thermoelectric generator</h1>
-            <div class="badge"><i class="fas fa-microchip" style="margin-right: 6px;"></i> ESP32 · Firebase RTDB · realtime</div>
+            <div class="badge"><i class="fas fa-microchip" style="margin-right: 6px;"></i> ESP32 · Firebase RTDB · live</div>
         </div>
-        <div class="status-chip">
+        <div class="status-chip" id="connectionBadge">
             <span class="online-dot"></span>
-            <span>live data stream</span>
+            <span>connecting to firebase...</span>
             <i class="fas fa-sync-alt fa-spin" style="color: #2c7cb0;"></i>
         </div>
     </div>
 
-    <!-- 4 PRIMARY CARDS (dynamic values) -->
+    <!-- 4 PRIMARY CARDS (live from firebase) -->
     <div class="grid-4">
-        <!-- TEG voltage card -->
         <div class="card">
             <div class="card-header">
                 <div class="icon-bg"><i class="fas fa-bolt"></i></div>
                 <div class="card-title">TEG output</div>
             </div>
             <div class="card-value"><span id="tegVal">0.00</span><span class="unit-sub">V</span></div>
-            <div class="trend-badge"><i class="fas fa-chart-line" style="color: #2f7d4f;"></i> Seebeck direct</div>
+            <div class="trend-badge"><i class="fas fa-chart-line"></i> Seebeck direct</div>
         </div>
-        <!-- Battery card -->
         <div class="card">
             <div class="card-header">
                 <div class="icon-bg"><i class="fas fa-car-battery"></i></div>
@@ -333,7 +460,6 @@
             <div class="card-value"><span id="batVal">0.00</span><span class="unit-sub">V</span></div>
             <div class="trend-badge"><i class="fas fa-battery-three-quarters"></i> nominal 12V</div>
         </div>
-        <!-- Boost converter -->
         <div class="card">
             <div class="card-header">
                 <div class="icon-bg"><i class="fas fa-rocket"></i></div>
@@ -342,7 +468,6 @@
             <div class="card-value"><span id="boostVal">0.00</span><span class="unit-sub">V</span></div>
             <div class="trend-badge"><i class="fas fa-arrow-up"></i> regulated</div>
         </div>
-        <!-- DS18B20 (main TEG temp) -->
         <div class="card">
             <div class="card-header">
                 <div class="icon-bg"><i class="fas fa-thermometer-half"></i></div>
@@ -355,10 +480,9 @@
 
     <!-- CHART + TABLE/FAN SECTION -->
     <div class="row-chart">
-        <!-- left side: bar chart mock (air, humidity, light) -->
         <div class="chart-panel">
             <div class="panel-header">
-                <h3><i class="fas fa-chart-bar" style="margin-right: 8px;"></i>ambient & light</h3>
+                <h3><i class="fas fa-chart-bar"></i> ambient & light</h3>
                 <div class="legend-chip">DHT11 + LDR</div>
             </div>
             <canvas id="envChart" width="400" height="180"></canvas>
@@ -369,14 +493,12 @@
             </div>
         </div>
 
-        <!-- right side: fan & snapshot table -->
         <div class="table-panel">
             <div class="panel-header">
                 <h3><i class="fas fa-sliders-h"></i> actuator & summary</h3>
                 <div class="legend-chip">PWM fan · LDR</div>
             </div>
 
-            <!-- FAN indicator (dynamic) -->
             <div class="fan-indicator">
                 <div class="fan-left">
                     <div class="label">fan PWM (DS18B20 control)</div>
@@ -385,14 +507,12 @@
                 <div class="fan-icon"><i class="fas fa-fan"></i></div>
             </div>
 
-            <!-- LDR progress bar with light% -->
             <div class="ldr-block">
                 <span><i class="fas fa-lightbulb" style="color: #e67e22;"></i> Light level</span>
                 <span style="font-weight: 600;"><span id="ldrPercent">0</span>%</span>
                 <div class="ldr-bar-bg"><div class="ldr-bar-fill" id="ldrBarFill" style="width: 0%;"></div></div>
             </div>
 
-            <!-- snapshot table: all other values -->
             <table class="snapshot-table">
                 <tr><td>🌡️ Air temperature (DHT11)</td><td><span id="airTable">0.0</span> °C</td></tr>
                 <tr><td>💧 Humidity</td><td><span id="humTable">0</span> %</td></tr>
@@ -404,167 +524,19 @@
         </div>
     </div>
 
-    <!-- FOOTER with firebase hint -->
     <div class="footer-note">
-        <span><i class="fas fa-database" style="margin-right: 6px;"></i> Firebase path: /sensors/ </span>
-        <span>ESP32 TEG · <span id="timestamp">updating...</span></span>
+        <span><i class="fas fa-database"></i> Firebase path: /sensors/ (live)</span>
+        <span>ESP32 TEG · <span id="timestamp">waiting for data...</span></span>
     </div>
 </div>
 
-<!-- SIMULATED FIREBASE UPDATES (matches esp32 structure) -->
+<!-- Non-module fallback message (if you need to check config) -->
 <script>
-    (function() {
-        // reference to all DOM elements
-        const tegSpan = document.getElementById('tegVal');
-        const batSpan = document.getElementById('batVal');
-        const boostSpan = document.getElementById('boostVal');
-        const dsTempSpan = document.getElementById('dsTempVal');
-        const fanPWMSpan = document.getElementById('fanPWM');
-        const fanStatusSpan = document.getElementById('fanStatus');
-
-        const airTempSpan = document.getElementById('airTempLabel');
-        const humSpan = document.getElementById('humLabel');
-        const lightSpan = document.getElementById('lightLabel');
-        const ldrPercentSpan = document.getElementById('ldrPercent');
-        const ldrBarFill = document.getElementById('ldrBarFill');
-
-        // table cells
-        const airTable = document.getElementById('airTable');
-        const humTable = document.getElementById('humTable');
-        const batTable = document.getElementById('batTable');
-        const boostTable = document.getElementById('boostTable');
-        const dsTable = document.getElementById('dsTable');
-        const tegTable = document.getElementById('tegTable');
-
-        const timestampSpan = document.getElementById('timestamp');
-
-        // Chart initialization (bar chart: air temp, humidity, light)
-        const ctx = document.getElementById('envChart').getContext('2d');
-        const envChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['Air °C', 'Hum %', 'Light %'],
-                datasets: [{
-                    label: 'current values',
-                    data: [0, 0, 0],
-                    backgroundColor: ['#3b8bc0', '#50a5d9', '#f1c40f'],
-                    borderRadius: 8,
-                    barPercentage: 0.65,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: true,
-                plugins: {
-                    legend: { display: false },
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: '#e2ecf5' },
-                        suggestedMax: 100,
-                    }
-                }
-            }
-        });
-
-        // ----- function to update UI from mock firebase object (matching esp32 keys) -----
-        function updateDashboard(data) {
-            // primary cards
-            tegSpan.innerText = data.teg?.toFixed(2) ?? '0.00';
-            batSpan.innerText = data.battery?.toFixed(2) ?? '0.00';
-            boostSpan.innerText = data.boost?.toFixed(2) ?? '0.00';
-            dsTempSpan.innerText = data.ds_temp?.toFixed(1) ?? '0.0';
-
-            const fanPWM = data.fan_pwm ?? 0;
-            fanPWMSpan.innerText = fanPWM;
-            const fanPercent = Math.round((fanPWM / 255) * 100);
-            fanStatusSpan.innerText = `fan ${fanPercent}%`;
-
-            // ambient bar values
-            const air = data.air_temp ?? 0;
-            const hum = data.humidity ?? 0;
-            const light = data.light ?? 0;
-
-            airTempSpan.innerText = air.toFixed(1);
-            humSpan.innerText = hum;
-            lightSpan.innerText = light;
-            ldrPercentSpan.innerText = light;
-            ldrBarFill.style.width = light + '%';
-
-            // table
-            airTable.innerText = air.toFixed(1);
-            humTable.innerText = hum;
-            batTable.innerText = data.battery?.toFixed(2) ?? '0.00';
-            boostTable.innerText = data.boost?.toFixed(2) ?? '0.00';
-            dsTable.innerText = data.ds_temp?.toFixed(1) ?? '0.0';
-            tegTable.innerText = data.teg?.toFixed(2) ?? '0.00';
-
-            // update chart
-            envChart.data.datasets[0].data = [air, hum, light];
-            envChart.update();
-
-            // timestamp
-            const now = new Date();
-            timestampSpan.innerText = now.toLocaleTimeString() + '  🔄 live';
-        }
-
-        // ---------- simulate realtime firebase fetch (every 3 seconds) ----------
-        // generate plausible values based on esp32 range
-        function generateMockData() {
-            // ds temp (teg side) 25-65°C  (influence fan)
-            const dsTemp = (Math.random() * 35 + 28).toFixed(1);  // ~28..63
-            // fan mapping from arduino code: <30:0, <40:100, <50:180 else 255
-            let fan = 0;
-            if (dsTemp >= 50) fan = 255;
-            else if (dsTemp >= 40) fan = 180;
-            else if (dsTemp >= 30) fan = 100;
-            else fan = 0;
-
-            // air temp DHT11 ~22-35
-            const airTemp = (Math.random() * 13 + 22).toFixed(1);
-            const hum = Math.floor(Math.random() * 40 + 35); // 35-75%
-            const ldr = Math.floor(Math.random() * 101);  // 0-100%
-
-            // voltages: teg 0.5~5.5V, bat 11.5~13.2, boost 5~7.5
-            const tegV = (Math.random() * 5 + 0.6).toFixed(2);
-            const batV = (Math.random() * 1.7 + 11.5).toFixed(2);
-            const boostV = (Math.random() * 2.5 + 5.0).toFixed(2);
-
-            return {
-                ds_temp: parseFloat(dsTemp),
-                air_temp: parseFloat(airTemp),
-                humidity: hum,
-                light: ldr,
-                battery: parseFloat(batV),
-                teg: parseFloat(tegV),
-                boost: parseFloat(boostV),
-                fan_pwm: fan
-            };
-        }
-
-        // initial data
-        let mock = generateMockData();
-        updateDashboard(mock);
-
-        // periodic update (like firebase polling)
-        setInterval(() => {
-            const fresh = generateMockData();
-            updateDashboard(fresh);
-        }, 2800);
-
-        // manual tweak: first load fine
-        // also reflect real esp32 data: light percent mapped 0-100, LDR raw -> percent.
-        // all good.
-
-        // you can also enable manual override via console (for presentation)
-        window.__mockUpdater = function(newVals) {
-            const current = generateMockData();
-            const merged = { ...current, ...newVals };
-            updateDashboard(merged);
-        };
-    })();
+    // Just to catch any obvious config error
+    window.onerror = function(msg) {
+        const badge = document.getElementById('connectionBadge');
+        if(badge) badge.innerHTML = '<span style="background:#e74c3c;" class="online-dot"></span> config error · check console';
+    };
 </script>
-<!-- additional note: The values reflect the exact fields from ESP32 Firebase: ds_temp, air_temp, humidity, light, battery, teg, boost, fan_pwm -->
 </body>
 </html>
